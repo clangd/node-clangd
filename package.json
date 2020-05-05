@@ -1,0 +1,51 @@
+{
+  "name": "@clangd/install",
+  "version": "0.0.0",
+  "description": "Installing clangd binaries within node-based editors.",
+  "main": "out/src/index.js",
+  "files": [],
+  "scripts": {
+    "compile": "tsc -watch -p ./",
+    "test": "tsc -p ./ && tape -r source-map-support/register 'out/test/**/*.js' | tap-spec",
+    "format": "clang-format -i --glob=\"{src,test}/*.ts\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clangd/node-clangd.git"
+  },
+  "keywords": [
+    "clangd",
+    "coc",
+    "vscode"
+  ],
+  "license": "Apache-2.0 WITH LLVM-exception",
+  "bugs": {
+    "url": "https://github.com/clangd/node-clangd/issues"
+  },
+  "dependencies": {
+    "abort-controller": "^3.0.0",
+    "node-fetch": "^2.6.0",
+    "readdirp": "^3.4.0",
+    "rimraf": "^3.0.2",
+    "semver": "^7.3.2",
+    "unzipper": "^0.10.11",
+    "which": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^13.13.4",
+    "@types/node-fetch": "^2.5.7",
+    "@types/node-static": "^0.7.3",
+    "@types/rimraf": "^3.0.0",
+    "@types/semver": "^7.1.0",
+    "@types/tape": "^4.13.0",
+    "@types/tmp": "^0.2.0",
+    "@types/unzipper": "^0.10.3",
+    "@types/which": "^1.3.2",
+    "node-static": "^0.7.11",
+    "source-map-support": "^0.5.19",
+    "tap-spec": "^5.0.0",
+    "tape": "^5.0.0",
+    "tmp-promise": "^2.1.0",
+    "typescript": "^3.8.3"
+  }
+}
