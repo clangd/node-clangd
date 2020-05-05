@@ -305,7 +305,7 @@ async function installed(clangdPath: string): Promise<semver.Range> {
   console.log(clangdPath, ' --version output: ', output);
   const prefix = 'clangd version ';
   if (!output.startsWith(prefix))
-    throw new Error(`Couldn't parse clangd --version output`);
+    throw new Error(`Couldn't parse clangd --version output: ${output}`);
   const rawVersion = output.substr(prefix.length).split(' ', 1)[0];
   return new semver.Range(rawVersion);
 }

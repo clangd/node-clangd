@@ -7,7 +7,8 @@
   "scripts": {
     "compile": "tsc -watch -p ./",
     "test": "tsc -p ./ && tape -r source-map-support/register 'out/test/**/*.js' | tap-spec",
-    "format": "clang-format -i --glob=\"{src,test}/*.ts\""
+    "format": "clang-format -i --glob=\"{src,test}/*.ts\"",
+    "git-clang-format": "git-clang-format"
   },
   "repository": {
     "type": "git",
