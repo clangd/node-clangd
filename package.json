@@ -1,6 +1,6 @@
 {
   "name": "@clangd/install",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Installing clangd binaries from editor plugins.",
   "main": "out/src/index.js",
   "files": [],
