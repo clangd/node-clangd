@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "description": "Installing clangd binaries from editor plugins.",
   "main": "out/src/index.js",
-  "files": [],
+  "files": ["out/src/index.d.ts"],
   "scripts": {
     "compile": "tsc -watch -p ./",
     "test": "tsc -p ./ && tape -r source-map-support/register 'out/test/**/*.js' | tap-spec",
     "format": "clang-format -i --glob=\"{src,test}/*.ts\"",
-    "git-clang-format": "git-clang-format"
+    "git-clang-format": "git-clang-format",
+    "prepare": "tsc -p ./"
   },
   "repository": {
     "type": "git",
