@@ -1,7 +1,7 @@
 {
   "name": "@clangd/install",
   "version": "0.0.0",
-  "description": "Installing clangd binaries within node-based editors.",
+  "description": "Installing clangd binaries from editor plugins.",
   "main": "out/src/index.js",
   "files": [],
   "scripts": {
@@ -41,6 +41,7 @@
     "@types/tmp": "^0.2.0",
     "@types/unzipper": "^0.10.3",
     "@types/which": "^1.3.2",
+    "clang-format": "^1.4.0",
     "node-static": "^0.7.11",
     "source-map-support": "^0.5.19",
     "tap-spec": "^5.0.0",

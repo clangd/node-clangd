@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as http from 'http';
 import * as nodeStatic from 'node-static';
+import * as path from 'path';
 import * as tape from 'tape';
 import * as tmp from 'tmp-promise';
-import * as path from 'path';
 
 import * as install from '../src/index';
 

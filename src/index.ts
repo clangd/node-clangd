@@ -44,7 +44,8 @@ type UI = {
   promptUpdate(oldVersion: string, newVersion: string): void;
   // Ask the user to run installLatest() to install missing clangd.
   promptInstall(version: string): void;
-  // Ask if we should reuse an existing clangd installation.
+  // Ask whether to reuse rather than overwrite an existing clangd installation.
+  // Undefined means no choice was made, so we shouldn't do either.
   shouldReuse(path: string): Promise<boolean|undefined>;
 
   // `work` may take a while to resolve, indicate we're doing something.
@@ -56,11 +57,14 @@ type UI = {
 }
 
 type InstallStatus = {
+  // Absolute path to clangd, or null if no valid clangd binary is configured.
   clangdPath: string|null;
   // Background tasks that were started, exposed for testing.
   background: Promise<void>;
 };
 
+// Main startup workflow: check whether the configured clangd binary us usable.
+// If not, offer to install one. If so, check for updates.
 export async function prepare(ui: UI,
                               checkUpdate: boolean): Promise<InstallStatus> {
   try {
@@ -73,7 +77,7 @@ export async function prepare(ui: UI,
   // Allow extension to load, asynchronously check for updates.
   return {
     clangdPath: absPath,
-    background: checkUpdate ? checkUpdates(/*requested=*/false, ui)
+    background: checkUpdate ? checkUpdates(/*requested=*/ false, ui)
                             : Promise.resolve()
   };
 }
@@ -116,7 +120,8 @@ export async function checkUpdates(requested: boolean, ui: UI) {
   // Bail out if the new version is better or comparable.
   if (!upgrade.upgrade) {
     if (requested)
-      ui.info('clangd is up-to-date');
+      ui.info(`clangd is up-to-date (you have ${upgrade.old}, latest is ${
+          upgrade.new})`);
     return;
   }
   ui.promptUpdate(upgrade.old, upgrade.new);
@@ -176,15 +181,15 @@ export function chooseAsset(release: Github.Release): Github.Asset|null {
     if (asset)
       return asset;
   }
-  throw new Error(
-      `No clangd ${release.name} binary available for your platform`);
+  throw new Error(`No clangd ${release.name} binary available for ${
+      os.platform()}/${os.arch()}`);
 }
 }
 
 // Functions to download and install the releases, and manage the files on disk.
 //
 // File layout:
-//  globalStoragePath/
+//  <ui.storagePath>/
 //    install/
 //      <version>/
 //        clangd_<version>/            (outer director from zip file)
@@ -213,6 +218,7 @@ export async function install(release: Github.Release, asset: Github.Asset,
       let files = (await readdirp.promise(extractRoot)).map(e => e.fullPath);
       return findExecutable(files);
     } else {
+      // Delete the old version.
       await promisify(rimraf)(extractRoot);
       // continue with installation.
     }
