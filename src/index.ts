@@ -271,7 +271,11 @@ async function download(url: string, dest: string, abort: AbortController,
           progress(read / size);
         });
         const out = fs.createWriteStream(dest);
-        await promisify(stream.pipeline)(response.body, out);
+        await promisify(stream.pipeline)(response.body, out).catch(e => {
+          // Clean up the partial file if the download failed.
+          fs.unlink(dest, (_) => null); // Don't wait, and ignore error.
+          throw e;
+        });
       });
 }
 }
