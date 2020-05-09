@@ -1,0 +1,8 @@
+#!/bin/sh
+if [ X"$1" = X"--version" ]; then
+  echo "musl libc (x86_64)"
+  echo "And here is a copyright notice."
+else
+  echo "Unexpected usage"
+  exit 1
+fi
