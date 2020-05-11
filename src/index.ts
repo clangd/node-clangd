@@ -337,7 +337,7 @@ function released(release: Github.Release): semver.Range {
              : new semver.Range(release.tag_name, loose);
 }
 
-// Get the version of glibc from the current (linux) system.
+// Detect the (linux) system's glibc version. If older than `min`, return it.
 export async function oldGlibc(min: semver.Range): Promise<semver.Range|null> {
   // ldd is distributed with glibc, so ldd --version should be a good proxy.
   const output = await run(lddCommand, ['--version']);
@@ -359,13 +359,13 @@ export async function oldGlibc(min: semver.Range): Promise<semver.Range|null> {
 async function run(command: string, flags: string[]): Promise<string> {
   const child = child_process.spawn(command, flags,
                                     {stdio: ['ignore', 'pipe', 'ignore']});
-  var output = '';
+  let output = '';
   for await (const chunk of child.stdout)
     output += chunk;
   return output;
 }
 
-export function rangeGreater(newVer: semver.Range, oldVer: semver.Range) {
+function rangeGreater(newVer: semver.Range, oldVer: semver.Range) {
   return semver.gtr(semver.minVersion(newVer), oldVer);
 }
 }
