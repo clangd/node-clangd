@@ -88,7 +88,7 @@ export async function installLatest(ui: UI) {
   const abort = new AbortController();
   try {
     const release = await Github.latestRelease();
-    const asset = Github.chooseAsset(release);
+    const asset = await Github.chooseAsset(release);
     ui.clangdPath = await Install.install(release, asset, abort, ui);
     ui.promptReload(`clangd ${release.name} is now installed.`);
   } catch (e) {
@@ -106,7 +106,7 @@ export async function checkUpdates(requested: boolean, ui: UI) {
   // Gather all the version information to see if there's an upgrade.
   try {
     var release = await Github.latestRelease();
-    Github.chooseAsset(release); // Ensure we have a binary for this platform.
+    await Github.chooseAsset(release); // Ensure a binary for this platform.
     var upgrade = await Version.upgrade(release, ui.clangdPath);
   } catch (e) {
     console.log('Failed to check for clangd update: ', e);
@@ -133,7 +133,7 @@ export async function checkUpdates(requested: boolean, ui: UI) {
 async function recover(ui: UI) {
   try {
     const release = await Github.latestRelease();
-    Github.chooseAsset(release); // Ensure binary available for this platform.
+    await Github.chooseAsset(release); // Ensure a binary for this platform.
     ui.promptInstall(release.name);
   } catch (e) {
     console.error('Auto-install failed: ', e);
@@ -147,6 +147,8 @@ let githubReleaseURL =
     'https://api.github.com/repos/clangd/clangd/releases/latest';
 // Set a fake URL for testing.
 export function fakeGitHubReleaseURL(u: string) { githubReleaseURL = u; }
+let lddCommand = 'ldd';
+export function fakeLddCommand(l: string) { lddCommand = l; }
 
 // Bits for talking to github's release API
 namespace Github {
@@ -168,13 +170,25 @@ export async function latestRelease(): Promise<Release> {
 }
 
 // Determine which release asset should be installed for this machine.
-export function chooseAsset(release: Github.Release): Github.Asset|null {
+export async function chooseAsset(release: Github.Release):
+    Promise<Github.Asset> {
   const variants: {[key: string]: string} = {
     'win32': 'windows',
     'linux': 'linux',
     'darwin': 'mac',
   };
   const variant = variants[os.platform()];
+  if (variant == 'linux') {
+    // Hardcoding this here is sad, but we'd like to offer a nice error message
+    // without making the user download the package first.
+    const minGlibc = new semver.Range('2.18');
+    const oldGlibc = await Version.oldGlibc(minGlibc);
+    if (oldGlibc) {
+      throw new Error('The clangd release is not compatible with your system ' +
+                      `(glibc ${oldGlibc.raw} < ${minGlibc.raw}). ` +
+                      'Try to install it using your package manager instead.');
+    }
+  }
   // 32-bit vscode is still common on 64-bit windows, so don't reject that.
   if (variant && (os.arch() == 'x64' || variant == 'windows')) {
     const asset = release.assets.find(a => a.name.indexOf(variant) >= 0);
@@ -299,28 +313,56 @@ export async function upgrade(release: Github.Release, clangdPath: string) {
   };
 }
 
+const loose: semver.Options = {
+  'loose': true
+};
+
 // Get the version of an installed clangd binary using `clangd --version`.
 async function installed(clangdPath: string): Promise<semver.Range> {
-  const child = child_process.spawn(clangdPath, ['--version'],
-                                    {stdio: ['ignore', 'pipe', 'ignore']});
-  var output = '';
-  for await (const chunk of child.stdout)
-    output += chunk;
+  const output = await run(clangdPath, ['--version']);
   console.log(clangdPath, ' --version output: ', output);
   const prefix = 'clangd version ';
   if (!output.startsWith(prefix))
     throw new Error(`Couldn't parse clangd --version output: ${output}`);
   const rawVersion = output.substr(prefix.length).split(' ', 1)[0];
-  return new semver.Range(rawVersion);
+  return new semver.Range(rawVersion, loose);
 }
 
 // Get the version of a github release, by parsing the tag or name.
 function released(release: Github.Release): semver.Range {
   // Prefer the tag name, but fall back to the release name.
-  return (!semver.validRange(release.tag_name) &&
-          semver.validRange(release.name))
-             ? new semver.Range(release.name)
-             : new semver.Range(release.tag_name);
+  return (!semver.validRange(release.tag_name, loose) &&
+          semver.validRange(release.name, loose))
+             ? new semver.Range(release.name, loose)
+             : new semver.Range(release.tag_name, loose);
+}
+
+// Detect the (linux) system's glibc version. If older than `min`, return it.
+export async function oldGlibc(min: semver.Range): Promise<semver.Range|null> {
+  // ldd is distributed with glibc, so ldd --version should be a good proxy.
+  const output = await run(lddCommand, ['--version']);
+  // The first line is e.g. "ldd (Debian GLIBC 2.29-9) 2.29".
+  const line = output.split('\n', 1)[0];
+  // Require some confirmation this is [e]glibc, and a plausible
+  // version number.
+  const match = line.match(/^ldd .*glibc.* (\d+(?:\.\d+)+)[^ ]*$/i);
+  if (!match || !semver.validRange(match[1], loose)) {
+    console.error(`Can't glibc version from ldd --version output: ${line}`);
+    return null;
+  }
+  const version = new semver.Range(match[1], loose);
+  console.log('glibc is', version.raw, 'min is', min.raw);
+  return rangeGreater(min, version) ? version : null;
+}
+
+// Run a system command and capture any stdout produced.
+async function run(command: string, flags: string[]): Promise<string> {
+  const child = child_process.spawn(command, flags,
+                                    {stdio: ['ignore', 'pipe', 'ignore']});
+  let output = '';
+  for await (const chunk of child.stdout)
+    output += chunk;
+  return output;
 }
 
 function rangeGreater(newVer: semver.Range, oldVer: semver.Range) {

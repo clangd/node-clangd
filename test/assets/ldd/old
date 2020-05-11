@@ -1,0 +1,8 @@
+#!/bin/sh
+if [ X"$1" = X"--version" ]; then
+  echo "ldd (Ancient EGLIBC 2.15) 2.15-old"
+  echo "And here is a copyright notice."
+else
+  echo "Unexpected usage"
+  exit 1
+fi

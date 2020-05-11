@@ -1,0 +1,8 @@
+#!/bin/sh
+if [ X"$1" = X"--version" ]; then
+  echo "ldd (glibc) 2.18"
+  echo "And here is a copyright notice."
+else
+  echo "Unexpected usage"
+  exit 1
+fi

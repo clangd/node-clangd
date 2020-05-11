@@ -1,16 +1,20 @@
 import * as fs from 'fs';
 import * as http from 'http';
 import * as nodeStatic from 'node-static';
+import * as os from 'os';
 import * as path from 'path';
 import * as tape from 'tape';
 import * as tmp from 'tmp-promise';
-
 import * as install from '../src/index';
 
 const oldClangd = process.cwd() + '/test/assets/fake-clangd-5/clangd';
 const newClangd = process.cwd() + '/test/assets/fake-clangd-15/clangd';
 const unversionedClangd =
     process.cwd() + '/test/assets/fake-clangd-unversioned/clangd';
+const exactLdd = process.cwd() + '/test/assets/ldd/exact';
+const oldLdd = process.cwd() + '/test/assets/ldd/old';
+const newLdd = process.cwd() + '/test/assets/ldd/new';
+const notGlibcLdd = process.cwd() + '/test/assets/ldd/not-glibc';
 const missingClangd = process.cwd() + '/test/assets/missing/clangd';
 const releases = 'http://127.0.0.1:9999/release.json';
 const incompatibleReleases = 'http://127.0.0.1:9999/release-incompatible.json';
@@ -74,6 +78,7 @@ function test(name: string,
                          .listen(9999, '127.0.0.1', async () => {
                            console.log('Fake github serving...');
                            install.fakeGitHubReleaseURL(releases);
+                           install.fakeLddCommand(exactLdd);
                            try {
                              await body(assert, ui);
                            } catch (e) {
@@ -113,6 +118,30 @@ test('install: no binary for platform', async (assert, ui) => {
               'clangdPath unmodified');
   assert.deepEqual(ui.events, ['showHelp']);
 });
+
+if (os.platform() == 'linux') {
+  test('install: new glibc', async (assert, ui) => {
+    install.fakeLddCommand(newLdd);
+    await install.installLatest(ui);
+
+    assert.deepEqual(ui.events, ['progress', 'slow', 'promptReload']);
+  });
+
+  test('install: old glibc', async (assert, ui) => {
+    install.fakeLddCommand(oldLdd);
+    await install.installLatest(ui);
+
+    assert.deepEqual(ui.events, ['showHelp'], 'not installed due to old glibc');
+  });
+
+  test('install: unknown glibc', async (assert, ui) => {
+    install.fakeLddCommand(notGlibcLdd);
+    await install.installLatest(ui);
+
+    // Installed. It may not work, but also maybe our detection just failed.
+    assert.deepEqual(ui.events, ['progress', 'slow', 'promptReload']);
+  });
+}
 
 test('install: reuse existing install', async (assert, ui) => {
   const existing = path.join(ui.storagePath, 'install', '10.0', 'weird-dir');
