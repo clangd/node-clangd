@@ -11,6 +11,7 @@ const oldClangd = process.cwd() + '/test/assets/fake-clangd-5/clangd';
 const newClangd = process.cwd() + '/test/assets/fake-clangd-15/clangd';
 const unversionedClangd =
     process.cwd() + '/test/assets/fake-clangd-unversioned/clangd';
+const exactLdd = process.cwd() + '/test/assets/ldd/exact';
 const oldLdd = process.cwd() + '/test/assets/ldd/old';
 const newLdd = process.cwd() + '/test/assets/ldd/new';
 const notGlibcLdd = process.cwd() + '/test/assets/ldd/not-glibc';
@@ -77,7 +78,7 @@ function test(name: string,
                          .listen(9999, '127.0.0.1', async () => {
                            console.log('Fake github serving...');
                            install.fakeGitHubReleaseURL(releases);
-                           install.fakeLddCommand(newLdd);
+                           install.fakeLddCommand(exactLdd);
                            try {
                              await body(assert, ui);
                            } catch (e) {
@@ -119,6 +120,13 @@ test('install: no binary for platform', async (assert, ui) => {
 });
 
 if (os.platform() == 'linux') {
+  test('install: new glibc', async (assert, ui) => {
+    install.fakeLddCommand(newLdd);
+    await install.installLatest(ui);
+
+    assert.deepEqual(ui.events, ['progress', 'slow', 'promptReload']);
+  });
+
   test('install: old glibc', async (assert, ui) => {
     install.fakeLddCommand(oldLdd);
     await install.installLatest(ui);
