@@ -190,7 +190,10 @@ export async function chooseAsset(release: Github.Release):
     }
   }
   // 32-bit vscode is still common on 64-bit windows, so don't reject that.
-  if (variant && (os.arch() == 'x64' || variant == 'windows')) {
+  if (variant && (os.arch() == 'x64' || variant == 'windows' ||
+                  // Mac distribution contains a fat binary working on both x64
+                  // and arm64s.
+                  (os.arch() == 'arm64' && variant == 'mac'))) {
     const asset = release.assets.find(a => a.name.indexOf(variant) >= 0);
     if (asset)
       return asset;
