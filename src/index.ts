@@ -194,7 +194,8 @@ export async function chooseAsset(release: Github.Release):
                   // Mac distribution contains a fat binary working on both x64
                   // and arm64s.
                   (os.arch() == 'arm64' && variant == 'mac'))) {
-    const asset = release.assets.find(a => a.name.indexOf(variant) >= 0);
+    const substr = 'clangd-' + variant;
+    const asset = release.assets.find(a => a.name.indexOf(substr) >= 0);
     if (asset)
       return asset;
   }
