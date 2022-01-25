@@ -11,6 +11,7 @@ const oldClangd = process.cwd() + '/test/assets/fake-clangd-5/clangd';
 const newClangd = process.cwd() + '/test/assets/fake-clangd-15/clangd';
 const unversionedClangd =
     process.cwd() + '/test/assets/fake-clangd-unversioned/clangd';
+const appleClangd = process.cwd() + '/test/assets/apple-clangd-5/clangd';
 const exactLdd = process.cwd() + '/test/assets/ldd/exact';
 const oldLdd = process.cwd() + '/test/assets/ldd/old';
 const newLdd = process.cwd() + '/test/assets/ldd/new';
@@ -195,6 +196,14 @@ test('update: from 15 to 10', async (assert, ui) => {
 
   assert.deepEqual(ui.events, [/*up-to-date*/ 'info']);
 });
+
+test('update: from apple to 10', async (assert, ui) => {
+  ui.clangdPath = appleClangd;
+  await install.checkUpdates(true, ui);
+
+  assert.deepEqual(ui.events, [/*cant-compare*/ 'error']);
+});
+
 
 // Test the generic on-startup flow which:
 //   - locates configured clangd if available

@@ -326,9 +326,16 @@ async function installed(clangdPath: string): Promise<semver.Range> {
   const output = await run(clangdPath, ['--version']);
   console.log(clangdPath, ' --version output: ', output);
   const prefix = 'clangd version ';
-  if (!output.startsWith(prefix))
+  const pos = output.indexOf(prefix);
+  if (pos < 0)
     throw new Error(`Couldn't parse clangd --version output: ${output}`);
-  const rawVersion = output.substr(prefix.length).split(' ', 1)[0];
+  if (pos > 0) {
+    const vendor = output.substring(0, pos).trim();
+    if (vendor == 'Apple')
+      throw new Error(`Cannot compare vendor's clangd version: ${output}`);
+  }
+  // Some vendors add trailing ~patchlevel, ignore this.
+  const rawVersion = output.substr(pos + prefix.length).split(/ |~/, 1)[0];
   return new semver.Range(rawVersion, loose);
 }
 

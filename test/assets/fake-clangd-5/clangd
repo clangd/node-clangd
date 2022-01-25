@@ -1,6 +1,7 @@
 #!/bin/sh
 if [ X"$1" = X"--version" ]; then
-  echo "clangd version 5.0.0 (fake)"
+  # Vendor prefix is acceptable.
+  echo "Ubuntu clangd version 5.0.0~1 (fake)"
 else
   echo "Unexpected usage"
   exit 1

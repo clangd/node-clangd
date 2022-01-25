@@ -1,0 +1,8 @@
+#!/bin/sh
+if [ X"$1" = X"--version" ]; then
+  # Vendor significant because Apple clang has a different version scheme.
+  echo "Apple clangd version 5.0.0 (fake)"
+else
+  echo "Unexpected usage"
+  exit 1
+fi
