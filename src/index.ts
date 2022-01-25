@@ -67,16 +67,20 @@ type InstallStatus = {
 // If not, offer to install one. If so, check for updates.
 export async function prepare(ui: UI,
                               checkUpdate: boolean): Promise<InstallStatus> {
+  let clangdPath = ui.clangdPath;
   try {
-    var absPath = await promisify(which)(ui.clangdPath) as string;
+    if (path.isAbsolute(clangdPath)) {
+      await promisify(fs.access)(clangdPath);
+    } else {
+      clangdPath = await promisify(which)(clangdPath) as string;
+    }
   } catch (e) {
-    // Couldn't find clangd - start recovery flow and stop extension
-    // loading.
+    // Couldn't find clangd - start recovery flow and stop extension loading.
     return {clangdPath: null, background: recover(ui)};
   }
   // Allow extension to load, asynchronously check for updates.
   return {
-    clangdPath: absPath,
+    clangdPath,
     background: checkUpdate ? checkUpdates(/*requested=*/ false, ui)
                             : Promise.resolve()
   };
