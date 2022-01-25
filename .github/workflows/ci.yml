@@ -10,7 +10,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - run: npm ci
-    - run: npm build
     - run: npm test
     - name: clang-format (diff)
       if: github.event_name == 'pull_request'
