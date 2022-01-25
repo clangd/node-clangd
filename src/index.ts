@@ -69,15 +69,13 @@ export async function prepare(ui: UI,
                               checkUpdate: boolean): Promise<InstallStatus> {
   let clangdPath = ui.clangdPath;
   try {
-    if (!path.isAbsolute(clangdPath)) {
-      clangdPath = await promisify(which)(ui.clangdPath) as string;
+    if (path.isAbsolute(clangdPath)) {
+      await promisify(fs.access)(clangdPath);
     } else {
-      if (!await promisify(fs.exists)(clangdPath))
-        throw new Error("clangd doesn't exist");
+      clangdPath = await promisify(which)(clangdPath) as string;
     }
   } catch (e) {
-    // Couldn't find clangd - start recovery flow and stop extension
-    // loading.
+    // Couldn't find clangd - start recovery flow and stop extension loading.
     return {clangdPath: null, background: recover(ui)};
   }
   // Allow extension to load, asynchronously check for updates.
