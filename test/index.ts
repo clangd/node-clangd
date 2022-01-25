@@ -204,7 +204,6 @@ test('update: from apple to 10', async (assert, ui) => {
   assert.deepEqual(ui.events, [/*cant-compare*/ 'error']);
 });
 
-
 // Test the generic on-startup flow which:
 //   - locates configured clangd if available
 //   - suggests installing it if missing, and checks for updates if present
