@@ -30,6 +30,9 @@ type UI = {
   readonly storagePath: string;
   // Configured clangd location.
   clangdPath: string;
+  // Storage for old clangd location, to be maybe cleaned up later.
+  // This should persist through promptReload.
+  cleanupPath: string | undefined;
 
   // Show a generic message to the user.
   info(s: string): void;
@@ -44,6 +47,8 @@ type UI = {
   promptUpdate(oldVersion: string, newVersion: string): void;
   // Ask the user to run installLatest() to install missing clangd.
   promptInstall(version: string): void;
+  // Ask the user whether to delete an old clangd installation.
+  promptDelete(path: string): Promise<boolean|undefined>;
   // Ask whether to reuse rather than overwrite an existing clangd installation.
   // Undefined means no choice was made, so we shouldn't do either.
   shouldReuse(path: string): Promise<boolean|undefined>;
@@ -77,8 +82,11 @@ export async function prepare(ui: UI,
   // Allow extension to load, asynchronously check for updates.
   return {
     clangdPath: absPath,
-    background: checkUpdate ? checkUpdates(/*requested=*/ false, ui)
-                            : Promise.resolve()
+    background: (async () => {
+      if (checkUpdate)
+        await checkUpdates(/*requested=*/ false, ui);
+      await checkCleanup(ui);
+    })(),
   };
 }
 
@@ -89,7 +97,9 @@ export async function installLatest(ui: UI) {
   try {
     const release = await Github.latestRelease();
     const asset = await Github.chooseAsset(release);
+    const oldPath = ui.clangdPath;
     ui.clangdPath = await Install.install(release, asset, abort, ui);
+    ui.cleanupPath = oldPath;
     ui.promptReload(`clangd ${release.name} is now installed.`);
   } catch (e) {
     if (!abort.signal.aborted) {
@@ -125,6 +135,49 @@ export async function checkUpdates(requested: boolean, ui: UI) {
     return;
   }
   ui.promptUpdate(upgrade.old, upgrade.new);
+}
+
+// Returns relative path of `p` within `parent`, if it is inside `parent`.
+function pathWithin(p: string, parent: string): string|undefined {
+  const result = path.relative(parent, p); // <version>/...
+  if (result && !result.startsWith('..') && !path.isAbsolute(result))
+    return result;
+  return undefined;
+}
+
+// Offer to delete the installation containing ui.cleanupPath if appropriate.
+export async function checkCleanup(ui: UI) {
+  // First, find the parent directory that we'd delete.
+  // cleanupPath = /storage/install/<version>/clangd-<version>/bin/clangd
+  // We want to delete /storage/install/<version>
+  const cleanupPath = ui.cleanupPath;
+  if (!cleanupPath)
+    return;
+  // install = /storage/install
+  const install = path.join(ui.storagePath, 'install');
+  // inInstall = <version>/clangd-<version>/bin/clangd
+  const inInstall = pathWithin(cleanupPath, install); // <version>/...
+  if (!inInstall) {
+    ui.cleanupPath = undefined; // Not a cleanable path.
+    return;
+  }
+  // cleanupDir = /storage/install/<version>
+  const cleanupDir = path.join(install, inInstall.split(path.sep)[0]);
+
+  // Don't clean up if it's in use, or already gone.
+  if (pathWithin(ui.clangdPath, cleanupDir) ||
+      !await promisify(fs.exists)(cleanupDir)) {
+    ui.cleanupPath = undefined;
+    return;
+  }
+
+  // Deleting looks valid, let's asked the user.
+  const answer = await ui.promptDelete(cleanupPath);
+  if (answer === undefined) // dismissed the prompt without yes/no
+    return;                 // ask again next time
+  if (answer)
+    await promisify(rimraf)(cleanupDir);
+  ui.cleanupPath = undefined; // don't ask or check again
 }
 
 // The extension has detected clangd isn't available.

@@ -31,6 +31,7 @@ class FakeUI {
   }
 
   clangdPath = oldClangd;
+  cleanupPath: string|undefined;
 
   info(s: string) {
     this.event('info');
@@ -52,6 +53,11 @@ class FakeUI {
   async shouldReuse() {
     this.event('shouldReuse');
     return this.shouldReuseValue;
+  }
+  public promptDeleteValue = true;
+  async promptDelete() {
+    this.event('promptDelete');
+    return this.promptDeleteValue;
   }
 
   slow<T>(_title: string, work: Promise<T>) {
@@ -104,6 +110,7 @@ test('install', async (assert, ui) => {
   assert.equal(ui.clangdPath, installedClangd);
   assert.deepEqual(
       ui.events, [/*download*/ 'progress', /*extract*/ 'slow', 'promptReload']);
+  assert.equal(ui.cleanupPath, oldClangd);
 });
 
 test('install: no binary for platform', async (assert, ui) => {
@@ -196,6 +203,66 @@ test('update: from 15 to 10', async (assert, ui) => {
   assert.deepEqual(ui.events, [/*up-to-date*/ 'info']);
 });
 
+// Test the cleanup of old installs.
+
+test('cleanup', async (assert, ui) => {
+  const bin = path.join(ui.storagePath, 'install', '4.0', 'dir', 'bin');
+  await fs.promises.mkdir(bin, {recursive: true});
+  ui.cleanupPath = path.join(bin, 'clangd');
+  ui.promptDeleteValue = true;
+  await install.checkCleanup(ui);
+
+  assert.deepEqual(ui.events, ['promptDelete']);
+  assert.equal(ui.cleanupPath, undefined);
+  assert.false(fs.existsSync(path.join(ui.storagePath, 'install', '4.0')),
+               `should delete clangd install dir above: ${bin}`);
+  assert.true(fs.existsSync(path.join(ui.storagePath, 'install')),
+              'should not delete install root');
+});
+
+test('cleanup: user declined', async (assert, ui) => {
+  const bin = path.join(ui.storagePath, 'install', '4.0', 'dir', 'bin');
+  await fs.promises.mkdir(bin, {recursive: true});
+  ui.cleanupPath = path.join(bin, 'clangd');
+  ui.promptDeleteValue = false;
+  await install.checkCleanup(ui);
+
+  assert.deepEqual(ui.events, ['promptDelete']);
+  assert.equal(ui.cleanupPath, undefined);
+  assert.true(fs.existsSync(bin), `should not delete, user declined: ${bin}`);
+});
+
+test('cleanup: user dismissed', async (assert, ui) => {
+  const bin = path.join(ui.storagePath, 'install', '4.0', 'dir', 'bin');
+  await fs.promises.mkdir(bin, {recursive: true});
+  ui.cleanupPath = path.join(bin, 'clangd');
+  ui.promptDeleteValue = undefined;
+  await install.checkCleanup(ui);
+
+  assert.deepEqual(ui.events, ['promptDelete']);
+  assert.equal(ui.cleanupPath, path.join(bin, 'clangd'));
+  assert.true(fs.existsSync(bin), `should not delete, user dismissed: ${bin}`);
+});
+
+test('cleanup: still in use', async (assert, ui) => {
+  const bin = path.join(ui.storagePath, 'install', '4.0', 'dir', 'bin');
+  await fs.promises.mkdir(bin, {recursive: true});
+  ui.cleanupPath = path.join(bin, 'clangd');
+  ui.clangdPath = path.join(ui.storagePath, 'install', '4.0', 'more', 'clangd');
+  await install.checkCleanup(ui);
+
+  assert.deepEqual(ui.events, [], `should not prompt, in use: ${bin}`);
+  assert.true(fs.existsSync(bin), `should not delete, in use: ${bin}`);
+});
+
+test('cleanup: already gone', async (assert, ui) => {
+  const bin = path.join(ui.storagePath, 'install', '4.0', 'dir', 'bin');
+  ui.cleanupPath = path.join(bin, 'clangd');
+  await install.checkCleanup(ui);
+
+  assert.deepEqual(ui.events, [], `should not prompt, missing: ${bin}`);
+});
+
 // Test the generic on-startup flow which:
 //   - locates configured clangd if available
 //   - suggests installing it if missing, and checks for updates if present
@@ -262,4 +329,16 @@ test('prepare: unversioned clangd installed', async (assert, ui) => {
   await status.background;
   // We assume any custom-installed clangd is desired.
   assert.deepEqual(ui.events, []);
+});
+
+test('prepare: cleanup declined', async (assert, ui) => {
+  ui.cleanupPath = path.join(ui.storagePath, 'install', '4.0', 'dir', 'clangd');
+  await fs.promises.mkdir(ui.cleanupPath, {recursive: true});
+  ui.clangdPath = newClangd;
+  ui.promptDeleteValue = false;
+
+  const status = await install.prepare(ui, true);
+  await status.background;
+  assert.deepEqual(ui.events, ['promptDelete']);
+  assert.equal(ui.cleanupPath, undefined, 'Cleared cleanupPath after prompt');
 });
