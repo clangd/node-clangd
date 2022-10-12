@@ -76,7 +76,7 @@ function test(name: string,
                            console.log('Fake github:', req.method, req.url);
                            req.on('end', () => files.serve(req, res)).resume();
                          })
-                         .listen(9999, '127.0.0.1', async () => {
+                         .listen(9999, '::', async () => {
                            console.log('Fake github serving...');
                            install.fakeGitHubReleaseURL(releases);
                            install.fakeLddCommand(exactLdd);
