@@ -19,6 +19,7 @@ const notGlibcLdd = process.cwd() + '/test/assets/ldd/not-glibc';
 const missingClangd = process.cwd() + '/test/assets/missing/clangd';
 const releases = 'http://127.0.0.1:9999/release.json';
 const incompatibleReleases = 'http://127.0.0.1:9999/release-incompatible.json';
+const wrongUrlReleases = 'http://127.0.0.1:9999/release-wrong-url.json';
 
 // A fake editor that records interactions.
 class FakeUI {
@@ -118,6 +119,20 @@ test('install: no binary for platform', async (assert, ui) => {
   assert.true(ui.clangdPath.endsWith('fake-clangd-5/clangd'),
               'clangdPath unmodified');
   assert.deepEqual(ui.events, ['showHelp']);
+});
+
+test('install: wrong url', async (assert, ui) => {
+  install.fakeGitHubReleaseURL(wrongUrlReleases);
+  await install.installLatest(ui);
+
+  const installedClangd =
+      path.join(ui.storagePath, 'install', '10.0', 'fake-clangd-10', 'clangd');
+  assert.false(fs.existsSync(installedClangd),
+               `Extracted clangd exists: ${installedClangd}`);
+  assert.true(ui.clangdPath.endsWith('fake-clangd-5/clangd'),
+              'clangdPath unmodified');
+  assert.deepEqual(ui.events,
+                   [/*download*/ 'progress', /*download-fails*/ 'showHelp']);
 });
 
 if (os.platform() == 'linux') {
