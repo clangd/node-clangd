@@ -285,7 +285,7 @@ async function download(url: string, dest: string, abort: AbortController,
       `Downloading ${path.basename(dest)}`, abort, async (progress) => {
         const response = await fetch(url, {signal: abort.signal});
         if (!response.ok)
-          throw new Error(`Failed to download $url`);
+          throw new Error(`Failed to download ${url}`);
         const size = Number(response.headers.get('content-length'));
         let read = 0;
         response.body.on('data', (chunk: Buffer) => {
