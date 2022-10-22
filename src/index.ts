@@ -339,7 +339,8 @@ async function installed(clangdPath: string): Promise<semver.Range> {
       throw new Error(`Cannot compare vendor's clangd version: ${output}`);
   }
   // Some vendors add trailing ~patchlevel, ignore this.
-  const rawVersion = output.substr(pos + prefix.length).split(/ |~/, 1)[0];
+  const rawVersion =
+      output.substr(pos + prefix.length).split(/ |~|\r?\n/, 1)[0];
   return new semver.Range(rawVersion, loose);
 }
 
