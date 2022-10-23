@@ -8,7 +8,8 @@ import * as tmp from 'tmp-promise';
 import * as install from '../src/index';
 
 const oldClangd = process.cwd() + '/test/assets/fake-clangd-5/clangd';
-const newClangd = process.cwd() + '/test/assets/fake-clangd-15/clangd';
+const newClangdV15 = process.cwd() + '/test/assets/fake-clangd-15/clangd';
+const newClangdV16 = process.cwd() + '/test/assets/fake-clangd-16/clangd';
 const unversionedClangd =
     process.cwd() + '/test/assets/fake-clangd-unversioned/clangd';
 const appleClangd = process.cwd() + '/test/assets/apple-clangd-5/clangd';
@@ -191,7 +192,14 @@ test('update: from 5 to 10', async (assert, ui) => {
 });
 
 test('update: from 15 to 10', async (assert, ui) => {
-  ui.clangdPath = newClangd;
+  ui.clangdPath = newClangdV15;
+  await install.checkUpdates(true, ui);
+
+  assert.deepEqual(ui.events, [/*up-to-date*/ 'info']);
+});
+
+test('update: from 16 to 10', async (assert, ui) => {
+  ui.clangdPath = newClangdV16;
   await install.checkUpdates(true, ui);
 
   assert.deepEqual(ui.events, [/*up-to-date*/ 'info']);
@@ -257,7 +265,7 @@ test('prepare: old clangd installed, new unavailable', async (assert, ui) => {
 });
 
 test('prepare: new clangd installed', async (assert, ui) => {
-  ui.clangdPath = newClangd;
+  ui.clangdPath = newClangdV15;
   const status = await install.prepare(ui, true);
   await status.background;
 
