@@ -340,7 +340,7 @@ async function installed(clangdPath: string): Promise<semver.Range> {
   }
   // Some vendors add trailing ~patchlevel, ignore this.
   const rawVersion =
-      output.substr(pos + prefix.length).split(/ |~|\r?\n/, 1)[0];
+      output.substr(pos + prefix.length).split(/\s|~/, 1)[0];
   return new semver.Range(rawVersion, loose);
 }
 
