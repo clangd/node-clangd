@@ -165,12 +165,19 @@ export interface Asset {
 
 // Fetch the metadata for the latest stable clangd release.
 export async function latestRelease(): Promise<Release> {
-  const response = await fetch(githubReleaseURL);
-  if (!response.ok) {
-    console.log(response.url, response.status, response.statusText);
-    throw new Error(`Can't fetch release: ${response.statusText}`);
+  const timeoutController = new AbortController();
+  const timeout = setTimeout(() => { timeoutController.abort(); }, 5000);
+  try {
+    const response =
+        await fetch(githubReleaseURL, {signal: timeoutController.signal});
+    if (!response.ok) {
+      console.log(response.url, response.status, response.statusText);
+      throw new Error(`Can't fetch release: ${response.statusText}`);
+    }
+    return await response.json() as Release;
+  } finally {
+    clearTimeout(timeout);
   }
-  return await response.json() as Release;
 }
 
 // Determine which release asset should be installed for this machine.
