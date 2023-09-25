@@ -9,6 +9,7 @@
 //  - no usable clangd found, try to recover
 // These have different flows, but the same underlying mechanisms.
 import {AbortController} from 'abort-controller';
+import * as AdmZip from 'adm-zip';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
@@ -18,7 +19,6 @@ import * as readdirp from 'readdirp';
 import * as rimraf from 'rimraf';
 import * as semver from 'semver';
 import * as stream from 'stream';
-import * as unzipper from 'unzipper';
 import {promisify} from 'util';
 import * as which from 'which';
 
@@ -254,10 +254,11 @@ export async function install(release: Github.Release, asset: Github.Asset,
   }
   const zipFile = path.join(dirs.download, asset.name);
   await download(asset.browser_download_url, zipFile, abort, ui);
-  const archive = await unzipper.Open.file(zipFile);
-  const executable = findExecutable(archive.files.map(f => f.path));
-  await ui.slow(`Extracting ${asset.name}`,
-                archive.extract({path: extractRoot}));
+  const zip = new AdmZip(zipFile);
+  await ui.slow(`Extracting ${asset.name}`, new Promise(resolve => {
+                  zip.extractAllToAsync(extractRoot, true, false, resolve);
+                }));
+  const executable = findExecutable(zip.getEntries().map(e => e.entryName));
   const clangdPath = path.join(extractRoot, executable);
   await fs.promises.chmod(clangdPath, 0o755);
   await fs.promises.unlink(zipFile);
