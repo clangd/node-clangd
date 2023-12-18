@@ -66,6 +66,13 @@ class FakeUI {
     this.event('progress');
     return work((fraction) => console.log('progress% ', 100 * fraction));
   }
+  localize(message: string, ...args: string[]): string {
+    let ret = message
+    for(const i in args){
+      ret.replace(`{${i}}`,args[i])
+    }
+    return ret
+  }
 };
 
 function test(name: string,
@@ -93,6 +100,7 @@ function test(name: string,
                          });
     });
   }, {unsafeCleanup: true}));
+  
 }
 
 // Test the actual installation, typically the clangd.install command.
