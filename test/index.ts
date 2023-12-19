@@ -66,10 +66,10 @@ class FakeUI {
     this.event('progress');
     return work((fraction) => console.log('progress% ', 100 * fraction));
   }
-  localize(message: string, ...args: string[]): string {
+  localize(message: string, ...args: Array<string | number | boolean>): string {
     let ret = message
     for(const i in args){
-      ret.replace(`{${i}}`,args[i])
+      ret.replace(`{${i}}`,args[i].toString())
     }
     return ret
   }

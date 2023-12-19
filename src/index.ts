@@ -55,8 +55,16 @@ type UI = {
               work: (progress: (fraction: number) => void) => Promise<T>):
       Promise<T>;
 
-  // Message l10n
-  localize(message: string, ...args: string[]): string;
+  /**
+   * Get localization string.
+   * @param message - The message to localize. Supports index templating where strings like `{0}` and `{1}` are
+   * replaced by the item at that index in the {@link args} array.
+   * @param args - The arguments to be used in the localized string. The index of the argument is used to
+   * match the template placeholder in the localized string.
+   * @returns localized string with injected arguments.
+   * @example `l10n.t('Hello {0}!', 'World');`
+   */
+  localize(message: string, ...args: Array<string | number | boolean>): string;
 }
 
 type InstallStatus = {
