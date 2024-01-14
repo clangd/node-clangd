@@ -54,6 +54,19 @@ type UI = {
   progress<T>(title: string, cancel: AbortController|null,
               work: (progress: (fraction: number) => void) => Promise<T>):
       Promise<T>;
+
+  /**
+   * Get localization string.
+   * @param message - The message to localize. Supports index templating where
+   *     strings like `{0}` and `{1}` are
+   * replaced by the item at that index in the {@link args} array.
+   * @param args - The arguments to be used in the localized string. The index
+   *     of the argument is used to
+   * match the template placeholder in the localized string.
+   * @returns localized string with injected arguments.
+   * @example `localize('Hello {0}!', 'World');`
+   */
+  localize(message: string, ...args: Array<string|number|boolean>): string;
 }
 
 type InstallStatus = {
@@ -94,12 +107,13 @@ export async function installLatest(ui: UI) {
     const release = await Github.latestRelease();
     const asset = await Github.chooseAsset(release);
     ui.clangdPath = await Install.install(release, asset, abort, ui);
-    ui.promptReload(`clangd ${release.name} is now installed.`);
+    ui.promptReload(ui.localize('clangd {0} is now installed.', release.name));
   } catch (e) {
     if (!abort.signal.aborted) {
       console.error('Failed to install clangd: ', e);
-      const message = `Failed to install clangd language server: ${e}\n` +
-                      'You may want to install it manually.';
+      const message = ui.localize(
+          'Failed to install clangd language server: {0}\nYou may want to install it manually.',
+          e)
       ui.showHelp(message, installURL);
     }
   }
@@ -116,7 +130,7 @@ export async function checkUpdates(requested: boolean, ui: UI) {
     console.log('Failed to check for clangd update: ', e);
     // We're not sure whether there's an upgrade: stay quiet unless asked.
     if (requested)
-      ui.error(`Failed to check for clangd update: ${e}`);
+      ui.error(ui.localize('Failed to check for clangd update: {0}', e));
     return;
   }
   console.log('Checking for clangd update: available=', upgrade.new,
@@ -124,8 +138,8 @@ export async function checkUpdates(requested: boolean, ui: UI) {
   // Bail out if the new version is better or comparable.
   if (!upgrade.upgrade) {
     if (requested)
-      ui.info(`clangd is up-to-date (you have ${upgrade.old}, latest is ${
-          upgrade.new})`);
+      ui.info(ui.localize('clangd is up-to-date (you have {0}, latest is {1})',
+                          upgrade.old, upgrade.new));
     return;
   }
   ui.promptUpdate(upgrade.old, upgrade.new);
@@ -141,7 +155,8 @@ async function recover(ui: UI) {
     ui.promptInstall(release.name);
   } catch (e) {
     console.error('Auto-install failed: ', e);
-    ui.showHelp('The clangd language server is not installed.', installURL);
+    ui.showHelp(ui.localize('The clangd language server is not installed.'),
+                installURL);
   }
 }
 
@@ -255,7 +270,8 @@ export async function install(release: Github.Release, asset: Github.Asset,
   const zipFile = path.join(dirs.download, asset.name);
   await download(asset.browser_download_url, zipFile, abort, ui);
   const zip = new AdmZip(zipFile);
-  await ui.slow(`Extracting ${asset.name}`, new Promise(resolve => {
+  await ui.slow(ui.localize('Extracting {0}', asset.name),
+                new Promise(resolve => {
                   zip.extractAllToAsync(extractRoot, true, false, resolve);
                 }));
   const executable = findExecutable(zip.getEntries().map(e => e.entryName));
@@ -290,7 +306,8 @@ async function download(url: string, dest: string, abort: AbortController,
                         ui: UI): Promise<void> {
   console.log('Downloading ', url, ' to ', dest);
   return ui.progress(
-      `Downloading ${path.basename(dest)}`, abort, async (progress) => {
+      ui.localize('Downloading {0}', path.basename(dest)), abort,
+      async (progress) => {
         const response = await fetch(url, {signal: abort.signal});
         if (!response.ok)
           throw new Error(`Failed to download ${url}`);

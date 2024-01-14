@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as tape from 'tape';
 import * as tmp from 'tmp-promise';
+
 import * as install from '../src/index';
 
 const oldClangd = process.cwd() + '/test/assets/fake-clangd-5/clangd';
@@ -65,6 +66,13 @@ class FakeUI {
               work: (progress: (fraction: number) => void) => Promise<T>) {
     this.event('progress');
     return work((fraction) => console.log('progress% ', 100 * fraction));
+  }
+  localize(message: string, ...args: Array<string|number|boolean>): string {
+    let ret = message;
+    for (const i in args) {
+      ret.replace(`{${i}}`, args[i].toString());
+    }
+    return ret;
   }
 };
 
