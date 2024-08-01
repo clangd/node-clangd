@@ -3,7 +3,7 @@ import * as http from 'http';
 import * as nodeStatic from 'node-static';
 import * as os from 'os';
 import * as path from 'path';
-import * as tape from 'tape';
+import tape from 'tape';
 import * as tmp from 'tmp-promise';
 
 import * as install from '../src/index';
@@ -107,7 +107,7 @@ function test(
               try {
                 await body(assert, ui);
               } catch (e) {
-                assert.fail(e);
+                assert.fail(e as string);
               }
               console.log('Fake github stopping...');
               server.close();

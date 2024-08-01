@@ -8,19 +8,17 @@
 //  - checking for updates (manual or automatic)
 //  - no usable clangd found, try to recover
 // These have different flows, but the same underlying mechanisms.
-import {AbortController} from 'abort-controller';
-import * as AdmZip from 'adm-zip';
+import AdmZip from 'adm-zip';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
-import * as readdirp from 'readdirp';
-import * as rimraf from 'rimraf';
+import {readdirpPromise} from 'readdirp';
+import {rimraf} from 'rimraf';
 import * as semver from 'semver';
 import * as stream from 'stream';
-import {promisify} from 'util';
-import * as which from 'which';
+import which from 'which';
 
 // Abstracts the editor UI and configuration.
 // This allows the core installation flows to be shared across editors, by
@@ -84,23 +82,27 @@ export async function prepare(
   ui: UI,
   checkUpdate: boolean,
 ): Promise<InstallStatus> {
-  let clangdPath = ui.clangdPath;
-  try {
-    if (path.isAbsolute(clangdPath)) {
-      await promisify(fs.access)(clangdPath);
-    } else {
-      clangdPath = (await promisify(which)(clangdPath)) as string;
+  let clangdPath: string | null = ui.clangdPath;
+  if (path.isAbsolute(clangdPath)) {
+    try {
+      await fs.promises.access(clangdPath);
+    } catch (e) {
+      console.error('fs.access() failed: ', e);
+      clangdPath = null;
     }
-  } catch (e) {
-    // Couldn't find clangd - start recovery flow and stop extension loading.
-    return {clangdPath: null, background: recover(ui)};
+  } else {
+    clangdPath = await which(clangdPath, {nothrow: true});
   }
-  // Allow extension to load, asynchronously check for updates.
   return {
     clangdPath,
-    background: checkUpdate
-      ? checkUpdates(/*requested=*/ false, ui)
-      : Promise.resolve(),
+    background:
+      clangdPath === null
+        ? // Couldn't find clangd - start recovery flow and stop extension loading.
+          recover(ui)
+        : // Allow extension to load, asynchronously check for updates.
+          checkUpdate
+          ? checkUpdates(/*requested=*/ false, ui)
+          : Promise.resolve(),
   };
 }
 
@@ -118,7 +120,7 @@ export async function installLatest(ui: UI) {
       console.error('Failed to install clangd: ', e);
       const message = ui.localize(
         'Failed to install clangd language server: {0}\nYou may want to install it manually.',
-        e,
+        e as string,
       );
       ui.showHelp(message, installURL);
     }
@@ -133,13 +135,15 @@ export async function checkUpdates(requested: boolean, ui: UI) {
     await Github.chooseAsset(release); // Ensure a binary for this platform.
     var upgrade = await Version.upgrade(release, ui.clangdPath);
   } catch (e) {
-    console.log('Failed to check for clangd update: ', e);
+    console.error('Failed to check for clangd update: ', e);
     // We're not sure whether there's an upgrade: stay quiet unless asked.
     if (requested)
-      ui.error(ui.localize('Failed to check for clangd update: {0}', e));
+      ui.error(
+        ui.localize('Failed to check for clangd update: {0}', e as string),
+      );
     return;
   }
-  console.log(
+  console.info(
     'Checking for clangd update: available=',
     upgrade.new,
     ' installed=',
@@ -213,7 +217,7 @@ namespace Github {
         signal: timeoutController.signal,
       });
       if (!response.ok) {
-        console.log(response.url, response.status, response.statusText);
+        console.error(response.url, response.status, response.statusText);
         throw new Error(`Can't fetch release: ${response.statusText}`);
       }
       return (await response.json()) as Release;
@@ -288,7 +292,9 @@ namespace Install {
   ): Promise<string> {
     const dirs = await createDirs(ui);
     const extractRoot = path.join(dirs.install, release.tag_name);
-    if (await promisify(fs.exists)(extractRoot)) {
+    // readdirp returns an empty array if the directory doesn't exist.
+    const entries = await readdirpPromise(extractRoot);
+    if (entries.length !== 0) {
       const reuse = await ui.shouldReuse(release.name);
       if (reuse === undefined) {
         // User dismissed prompt, bail out.
@@ -297,27 +303,31 @@ namespace Install {
       }
       if (reuse) {
         // Find clangd within the existing directory.
-        let files = (await readdirp.promise(extractRoot)).map(
-          (e) => e.fullPath,
-        );
-        return findExecutable(files);
+        const executable = entries.find((e) => e.basename == clangdFilename);
+        if (executable === undefined) {
+          throw new Error(`Didn't find ${clangdFilename} in ${extractRoot}`);
+        }
+        return executable.fullPath;
       } else {
         // Delete the old version.
-        await promisify(rimraf)(extractRoot);
+        await rimraf(extractRoot);
         // continue with installation.
       }
     }
     const zipFile = path.join(dirs.download, asset.name);
     await download(asset.browser_download_url, zipFile, abort, ui);
     const zip = new AdmZip(zipFile);
+    const executable = zip.getEntries().find((e) => e.name == clangdFilename);
+    if (executable === undefined) {
+      throw new Error(`Didn't find ${clangdFilename} in ${zipFile}`);
+    }
     await ui.slow(
       ui.localize('Extracting {0}', asset.name),
       new Promise((resolve) => {
         zip.extractAllToAsync(extractRoot, true, false, resolve);
       }),
     );
-    const executable = findExecutable(zip.getEntries().map((e) => e.entryName));
-    const clangdPath = path.join(extractRoot, executable);
+    const clangdPath = path.join(extractRoot, executable.entryName);
     await fs.promises.chmod(clangdPath, 0o755);
     await fs.promises.unlink(zipFile);
     return clangdPath;
@@ -332,17 +342,7 @@ namespace Install {
     return {install: install, download: download};
   }
 
-  // Find the clangd executable within a set of files.
-  function findExecutable(paths: string[]): string {
-    const filename = os.platform() == 'win32' ? 'clangd.exe' : 'clangd';
-    const entry = paths.find(
-      (f) =>
-        path.posix.basename(f) == filename ||
-        path.win32.basename(f) == filename,
-    );
-    if (entry == null) throw new Error("Didn't find a clangd executable!");
-    return entry;
-  }
+  const clangdFilename = os.platform() == 'win32' ? 'clangd.exe' : 'clangd';
 
   // Downloads `url` to a local file `dest` (whose parent should exist).
   // A progress dialog is shown, if it is cancelled then `abort` is signaled.
@@ -352,13 +352,14 @@ namespace Install {
     abort: AbortController,
     ui: UI,
   ): Promise<void> {
-    console.log('Downloading ', url, ' to ', dest);
+    console.info('Downloading ', url, ' to ', dest);
     return ui.progress(
       ui.localize('Downloading {0}', path.basename(dest)),
       abort,
       async (progress) => {
         const response = await fetch(url, {signal: abort.signal});
-        if (!response.ok) throw new Error(`Failed to download ${url}`);
+        if (!response.ok || response.body === null)
+          throw new Error(`Can't fetch ${url}: ${response.statusText}`);
         const size = Number(response.headers.get('content-length'));
         let read = 0;
         response.body.on('data', (chunk: Buffer) => {
@@ -366,11 +367,13 @@ namespace Install {
           progress(read / size);
         });
         const out = fs.createWriteStream(dest);
-        await promisify(stream.pipeline)(response.body, out).catch((e) => {
+        try {
+          await stream.promises.pipeline(response.body, out);
+        } catch (e) {
           // Clean up the partial file if the download failed.
           fs.unlink(dest, (_) => null); // Don't wait, and ignore error.
           throw e;
-        });
+        }
       },
     );
   }
@@ -402,7 +405,7 @@ namespace Version {
   // Get the version of an installed clangd binary using `clangd --version`.
   async function installed(clangdPath: string): Promise<semver.Range> {
     const output = await run(clangdPath, ['--version']);
-    console.log(clangdPath, ' --version output: ', output);
+    console.info(clangdPath, ' --version output: ', output);
     const prefix = 'clangd version ';
     const pos = output.indexOf(prefix);
     if (pos < 0)
@@ -442,7 +445,7 @@ namespace Version {
       return null;
     }
     const version = new semver.Range(match[1], loose);
-    console.log('glibc is', version.raw, 'min is', min.raw);
+    console.info('glibc is', version.raw, 'min is', min.raw);
     return rangeGreater(min, version) ? version : null;
   }
 
@@ -457,6 +460,10 @@ namespace Version {
   }
 
   function rangeGreater(newVer: semver.Range, oldVer: semver.Range) {
-    return semver.gtr(semver.minVersion(newVer), oldVer);
+    const minVersion = semver.minVersion(newVer);
+    if (minVersion === null) {
+      throw new Error(`Couldn't parse version range: ${newVer}`);
+    }
+    return semver.gtr(minVersion, oldVer);
   }
 }
