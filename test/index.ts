@@ -12,7 +12,7 @@ const oldClangd = process.cwd() + '/test/assets/fake-clangd-5/clangd';
 const newClangdV15 = process.cwd() + '/test/assets/fake-clangd-15/clangd';
 const newClangdV16 = process.cwd() + '/test/assets/fake-clangd-16/clangd';
 const unversionedClangd =
-    process.cwd() + '/test/assets/fake-clangd-unversioned/clangd';
+  process.cwd() + '/test/assets/fake-clangd-unversioned/clangd';
 const appleClangd = process.cwd() + '/test/assets/apple-clangd-5/clangd';
 const exactLdd = process.cwd() + '/test/assets/ldd/exact';
 const oldLdd = process.cwd() + '/test/assets/ldd/old';
@@ -49,9 +49,15 @@ class FakeUI {
     console.info(msg, url);
   }
 
-  promptReload() { this.event('promptReload'); }
-  promptUpdate() { this.event('promptUpdate'); }
-  promptInstall() { this.event('promptInstall'); }
+  promptReload() {
+    this.event('promptReload');
+  }
+  promptUpdate() {
+    this.event('promptUpdate');
+  }
+  promptInstall() {
+    this.event('promptInstall');
+  }
   public shouldReuseValue = true;
   async shouldReuse() {
     this.event('shouldReuse');
@@ -62,45 +68,56 @@ class FakeUI {
     this.event('slow');
     return work;
   }
-  progress<T>(_title: string, _cancel: any,
-              work: (progress: (fraction: number) => void) => Promise<T>) {
+  progress<T>(
+    _title: string,
+    _cancel: any,
+    work: (progress: (fraction: number) => void) => Promise<T>,
+  ) {
     this.event('progress');
     return work((fraction) => console.log('progress% ', 100 * fraction));
   }
-  localize(message: string, ...args: Array<string|number|boolean>): string {
+  localize(message: string, ...args: Array<string | number | boolean>): string {
     let ret = message;
     for (const i in args) {
       ret.replace(`{${i}}`, args[i].toString());
     }
     return ret;
   }
-};
+}
 
-function test(name: string,
-              body: (assert: tape.Test, ui: FakeUI) => Promise<any>) {
-  tape(name, async (assert) => tmp.withDir(async dir => {
-    const ui = new FakeUI(dir.path);
-    const files = new nodeStatic.Server('test/assets/');
-    return new Promise((resolve, _reject) => {
-      const server = http.createServer((req, res) => {
-                           console.log('Fake github:', req.method, req.url);
-                           req.on('end', () => files.serve(req, res)).resume();
-                         })
-                         .listen(9999, '::', async () => {
-                           console.log('Fake github serving...');
-                           install.fakeGitHubReleaseURL(releases);
-                           install.fakeLddCommand(exactLdd);
-                           try {
-                             await body(assert, ui);
-                           } catch (e) {
-                             assert.fail(e);
-                           }
-                           console.log('Fake github stopping...');
-                           server.close();
-                           resolve();
-                         });
-    });
-  }, {unsafeCleanup: true}));
+function test(
+  name: string,
+  body: (assert: tape.Test, ui: FakeUI) => Promise<any>,
+) {
+  tape(name, async (assert) =>
+    tmp.withDir(
+      async (dir) => {
+        const ui = new FakeUI(dir.path);
+        const files = new nodeStatic.Server('test/assets/');
+        return new Promise((resolve, _reject) => {
+          const server = http
+            .createServer((req, res) => {
+              console.log('Fake github:', req.method, req.url);
+              req.on('end', () => files.serve(req, res)).resume();
+            })
+            .listen(9999, '::', async () => {
+              console.log('Fake github serving...');
+              install.fakeGitHubReleaseURL(releases);
+              install.fakeLddCommand(exactLdd);
+              try {
+                await body(assert, ui);
+              } catch (e) {
+                assert.fail(e);
+              }
+              console.log('Fake github stopping...');
+              server.close();
+              resolve();
+            });
+        });
+      },
+      {unsafeCleanup: true},
+    ),
+  );
 }
 
 // Test the actual installation, typically the clangd.install command.
@@ -108,25 +125,44 @@ function test(name: string,
 test('install', async (assert, ui) => {
   await install.installLatest(ui);
 
-  const installedClangd =
-      path.join(ui.storagePath, 'install', '10.0', 'fake-clangd-10', 'clangd');
-  assert.true(fs.existsSync(installedClangd),
-              `Extracted clangd exists: ${installedClangd}`);
+  const installedClangd = path.join(
+    ui.storagePath,
+    'install',
+    '10.0',
+    'fake-clangd-10',
+    'clangd',
+  );
+  assert.true(
+    fs.existsSync(installedClangd),
+    `Extracted clangd exists: ${installedClangd}`,
+  );
   assert.equal(ui.clangdPath, installedClangd);
-  assert.deepEqual(
-      ui.events, [/*download*/ 'progress', /*extract*/ 'slow', 'promptReload']);
+  assert.deepEqual(ui.events, [
+    /*download*/ 'progress',
+    /*extract*/ 'slow',
+    'promptReload',
+  ]);
 });
 
 test('install: no binary for platform', async (assert, ui) => {
   install.fakeGitHubReleaseURL(incompatibleReleases);
   await install.installLatest(ui);
 
-  const installedClangd =
-      path.join(ui.storagePath, 'install', '10.0', 'fake-clangd-10', 'clangd');
-  assert.false(fs.existsSync(installedClangd),
-               `Extracted clangd exists: ${installedClangd}`);
-  assert.true(ui.clangdPath.endsWith('fake-clangd-5/clangd'),
-              'clangdPath unmodified');
+  const installedClangd = path.join(
+    ui.storagePath,
+    'install',
+    '10.0',
+    'fake-clangd-10',
+    'clangd',
+  );
+  assert.false(
+    fs.existsSync(installedClangd),
+    `Extracted clangd exists: ${installedClangd}`,
+  );
+  assert.true(
+    ui.clangdPath.endsWith('fake-clangd-5/clangd'),
+    'clangdPath unmodified',
+  );
   assert.deepEqual(ui.events, ['showHelp']);
 });
 
@@ -134,14 +170,25 @@ test('install: wrong url', async (assert, ui) => {
   install.fakeGitHubReleaseURL(wrongUrlReleases);
   await install.installLatest(ui);
 
-  const installedClangd =
-      path.join(ui.storagePath, 'install', '10.0', 'fake-clangd-10', 'clangd');
-  assert.false(fs.existsSync(installedClangd),
-               `Extracted clangd exists: ${installedClangd}`);
-  assert.true(ui.clangdPath.endsWith('fake-clangd-5/clangd'),
-              'clangdPath unmodified');
-  assert.deepEqual(ui.events,
-                   [/*download*/ 'progress', /*download-fails*/ 'showHelp']);
+  const installedClangd = path.join(
+    ui.storagePath,
+    'install',
+    '10.0',
+    'fake-clangd-10',
+    'clangd',
+  );
+  assert.false(
+    fs.existsSync(installedClangd),
+    `Extracted clangd exists: ${installedClangd}`,
+  );
+  assert.true(
+    ui.clangdPath.endsWith('fake-clangd-5/clangd'),
+    'clangdPath unmodified',
+  );
+  assert.deepEqual(ui.events, [
+    /*download*/ 'progress',
+    /*download-fails*/ 'showHelp',
+  ]);
 });
 
 if (os.platform() == 'linux') {
@@ -177,8 +224,13 @@ test('install: reuse existing install', async (assert, ui) => {
   ui.shouldReuseValue = true;
   await install.installLatest(ui);
 
-  const installedClangd =
-      path.join(ui.storagePath, 'install', '10.0', 'fake-clangd-10', 'clangd');
+  const installedClangd = path.join(
+    ui.storagePath,
+    'install',
+    '10.0',
+    'fake-clangd-10',
+    'clangd',
+  );
   assert.false(fs.existsSync(installedClangd), 'Not extracted');
   assert.true(fs.existsSync(existingClangd), 'Not erased');
   assert.equal(existingClangd, ui.clangdPath, 'clangdPath is existing install');
@@ -194,13 +246,21 @@ test('install: overwrite existing install', async (assert, ui) => {
   ui.shouldReuseValue = false;
   await install.installLatest(ui);
 
-  const installedClangd =
-      path.join(ui.storagePath, 'install', '10.0', 'fake-clangd-10', 'clangd');
+  const installedClangd = path.join(
+    ui.storagePath,
+    'install',
+    '10.0',
+    'fake-clangd-10',
+    'clangd',
+  );
   assert.true(fs.existsSync(installedClangd), 'Extracted');
   assert.false(fs.existsSync(existingClangd), 'Erased');
   assert.equal(installedClangd, ui.clangdPath, 'clangdPath is new install');
   assert.deepEqual(ui.events, [
-    'shouldReuse', /*download*/ 'progress', /*extract*/ 'slow', 'promptReload'
+    'shouldReuse',
+    /*download*/ 'progress',
+    /*extract*/ 'slow',
+    'promptReload',
   ]);
 });
 
