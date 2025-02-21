@@ -4,14 +4,20 @@
     "target": "es6",
     "outDir": "out",
     "lib": [
-      "es6", "es2015.core", "es2015.collection", "es2015.generator",
-      "es2015.iterable", "es2015.promise", "es2015.symbol"
+      "es6",
+      "es2015.core",
+      "es2015.collection",
+      "es2015.generator",
+      "es2015.iterable",
+      "es2015.promise",
+      "es2015.symbol"
     ],
     "sourceMap": true,
     "declaration": true,
     "rootDir": ".",
     "alwaysStrict": true,
-    "strict": false,
+    "strict": true,
+    "esModuleInterop": true,
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
