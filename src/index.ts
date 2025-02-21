@@ -323,8 +323,13 @@ namespace Install {
     }
     await ui.slow(
       ui.localize('Extracting {0}', asset.name),
-      new Promise((resolve) => {
-        zip.extractAllToAsync(extractRoot, true, false, resolve);
+      new Promise<void>((resolve, reject) => {
+        try {
+          zip.extractAllTo(extractRoot, true, false);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
       }),
     );
     const clangdPath = path.join(extractRoot, executable.entryName);
