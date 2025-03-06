@@ -26,21 +26,21 @@
     "url": "https://github.com/clangd/node-clangd/issues"
   },
   "dependencies": {
-    "adm-zip": "^0.5.14",
     "node-fetch": "^2.7.0",
     "readdirp": "^4.1.1",
     "rimraf": "^6.0.1",
     "semver": "^7.6.3",
+    "unzipper": "^0.12.3",
     "which": "^5.0.0"
   },
   "devDependencies": {
-    "@types/adm-zip": "^0.5.5",
     "@types/node": "^22.0.2",
     "@types/node-fetch": "^2.6.11",
     "@types/node-static": "^0.7.11",
     "@types/semver": "^7.5.8",
     "@types/tape": "^5.6.4",
     "@types/tmp": "^0.2.6",
+    "@types/unzipper": "^0.10.11",
     "@types/which": "^3.0.4",
     "node-static": "^0.7.11",
     "prettier": "^3.3.3",

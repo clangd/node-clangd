@@ -8,7 +8,6 @@
 //  - checking for updates (manual or automatic)
 //  - no usable clangd found, try to recover
 // These have different flows, but the same underlying mechanisms.
-import AdmZip from 'adm-zip';
 import * as child_process from 'child_process';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
@@ -18,6 +17,7 @@ import {readdirpPromise} from 'readdirp';
 import {rimraf} from 'rimraf';
 import * as semver from 'semver';
 import * as stream from 'stream';
+import * as unzipper from 'unzipper';
 import which from 'which';
 
 // Abstracts the editor UI and configuration.
@@ -316,18 +316,18 @@ namespace Install {
     }
     const zipFile = path.join(dirs.download, asset.name);
     await download(asset.browser_download_url, zipFile, abort, ui);
-    const zip = new AdmZip(zipFile);
-    const executable = zip.getEntries().find((e) => e.name == clangdFilename);
+    const archive = await unzipper.Open.file(zipFile);
+    const executable = archive.files.find(
+      (file) => path.basename(file.path) == clangdFilename,
+    );
     if (executable === undefined) {
       throw new Error(`Didn't find ${clangdFilename} in ${zipFile}`);
     }
     await ui.slow(
       ui.localize('Extracting {0}', asset.name),
-      new Promise((resolve) => {
-        zip.extractAllToAsync(extractRoot, true, false, resolve);
-      }),
+      archive.extract({path: extractRoot}),
     );
-    const clangdPath = path.join(extractRoot, executable.entryName);
+    const clangdPath = path.join(extractRoot, executable.path);
     await fs.promises.chmod(clangdPath, 0o755);
     await fs.promises.unlink(zipFile);
     return clangdPath;
