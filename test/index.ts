@@ -8,17 +8,20 @@ import * as tmp from 'tmp-promise';
 
 import * as install from '../src/index';
 
-const oldClangd = process.cwd() + '/test/assets/fake-clangd-5/clangd';
-const newClangdV15 = process.cwd() + '/test/assets/fake-clangd-15/clangd';
-const newClangdV16 = process.cwd() + '/test/assets/fake-clangd-16/clangd';
-const unversionedClangd =
-  process.cwd() + '/test/assets/fake-clangd-unversioned/clangd';
-const appleClangd = process.cwd() + '/test/assets/apple-clangd-5/clangd';
-const exactLdd = process.cwd() + '/test/assets/ldd/exact';
-const oldLdd = process.cwd() + '/test/assets/ldd/old';
-const newLdd = process.cwd() + '/test/assets/ldd/new';
-const notGlibcLdd = process.cwd() + '/test/assets/ldd/not-glibc';
-const missingClangd = process.cwd() + '/test/assets/missing/clangd';
+const assetsRoot = path.resolve(__dirname, '../../test/assets');
+const oldClangd = path.join(assetsRoot, 'fake-clangd-5/clangd');
+const newClangdV15 = path.join(assetsRoot, 'fake-clangd-15/clangd');
+const newClangdV16 = path.join(assetsRoot, 'fake-clangd-16/clangd');
+const unversionedClangd = path.join(
+  assetsRoot,
+  'fake-clangd-unversioned/clangd',
+);
+const appleClangd = path.join(assetsRoot, 'apple-clangd-5/clangd');
+const exactLdd = path.join(assetsRoot, 'ldd/exact');
+const oldLdd = path.join(assetsRoot, 'ldd/old');
+const newLdd = path.join(assetsRoot, 'ldd/new');
+const notGlibcLdd = path.join(assetsRoot, 'ldd/not-glibc');
+const missingClangd = path.join(assetsRoot, 'missing/clangd');
 const releases = 'http://127.0.0.1:9999/release.json';
 const incompatibleReleases = 'http://127.0.0.1:9999/release-incompatible.json';
 const wrongUrlReleases = 'http://127.0.0.1:9999/release-wrong-url.json';
