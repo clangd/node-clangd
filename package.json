@@ -27,11 +27,11 @@
   },
   "dependencies": {
     "node-fetch": "^3.3.2",
-    "readdirp": "^4.1.1",
+    "readdirp": "^5.0.0",
     "rimraf": "^6.0.1",
     "semver": "^7.6.3",
     "unzipper": "^0.12.3",
-    "which": "^5.0.0"
+    "which": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
