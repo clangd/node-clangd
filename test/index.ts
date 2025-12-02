@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as http from 'http';
-import * as nodeStatic from 'node-static';
 import * as os from 'os';
 import * as path from 'path';
 import tape from 'tape';
@@ -8,17 +7,20 @@ import * as tmp from 'tmp-promise';
 
 import * as install from '../src/index';
 
-const oldClangd = process.cwd() + '/test/assets/fake-clangd-5/clangd';
-const newClangdV15 = process.cwd() + '/test/assets/fake-clangd-15/clangd';
-const newClangdV16 = process.cwd() + '/test/assets/fake-clangd-16/clangd';
-const unversionedClangd =
-  process.cwd() + '/test/assets/fake-clangd-unversioned/clangd';
-const appleClangd = process.cwd() + '/test/assets/apple-clangd-5/clangd';
-const exactLdd = process.cwd() + '/test/assets/ldd/exact';
-const oldLdd = process.cwd() + '/test/assets/ldd/old';
-const newLdd = process.cwd() + '/test/assets/ldd/new';
-const notGlibcLdd = process.cwd() + '/test/assets/ldd/not-glibc';
-const missingClangd = process.cwd() + '/test/assets/missing/clangd';
+const assetsRoot = path.resolve(__dirname, '../../test/assets');
+const oldClangd = path.join(assetsRoot, 'fake-clangd-5/clangd');
+const newClangdV15 = path.join(assetsRoot, 'fake-clangd-15/clangd');
+const newClangdV16 = path.join(assetsRoot, 'fake-clangd-16/clangd');
+const unversionedClangd = path.join(
+  assetsRoot,
+  'fake-clangd-unversioned/clangd',
+);
+const appleClangd = path.join(assetsRoot, 'apple-clangd-5/clangd');
+const exactLdd = path.join(assetsRoot, 'ldd/exact');
+const oldLdd = path.join(assetsRoot, 'ldd/old');
+const newLdd = path.join(assetsRoot, 'ldd/new');
+const notGlibcLdd = path.join(assetsRoot, 'ldd/not-glibc');
+const missingClangd = path.join(assetsRoot, 'missing/clangd');
 const releases = 'http://127.0.0.1:9999/release.json';
 const incompatibleReleases = 'http://127.0.0.1:9999/release-incompatible.json';
 const wrongUrlReleases = 'http://127.0.0.1:9999/release-wrong-url.json';
@@ -70,7 +72,7 @@ class FakeUI {
   }
   progress<T>(
     _title: string,
-    _cancel: any,
+    _cancel: AbortController | null,
     work: (progress: (fraction: number) => void) => Promise<T>,
   ) {
     this.event('progress');
@@ -87,18 +89,49 @@ class FakeUI {
 
 function test(
   name: string,
-  body: (assert: tape.Test, ui: FakeUI) => Promise<any>,
+  body: (assert: tape.Test, ui: FakeUI) => Promise<void>,
 ) {
   tape(name, async (assert) =>
     tmp.withDir(
       async (dir) => {
         const ui = new FakeUI(dir.path);
-        const files = new nodeStatic.Server('test/assets/');
         return new Promise((resolve, _reject) => {
           const server = http
-            .createServer((req, res) => {
+            .createServer(async (req, res) => {
               console.log('Fake github:', req.method, req.url);
-              req.on('end', () => files.serve(req, res)).resume();
+              if (!req.url) {
+                res.statusCode = 400;
+                res.end();
+                return;
+              }
+
+              req.resume();
+
+              const {pathname} = new URL(req.url, 'http://localhost');
+              const filePath = path.resolve(assetsRoot, '.' + pathname);
+              if (!filePath.startsWith(assetsRoot + path.sep)) {
+                res.statusCode = 400;
+                res.end();
+                return;
+              }
+
+              try {
+                const handle = await fs.promises.open(filePath, 'r');
+                const stat = await handle.stat();
+                res.setHeader('Content-Length', stat.size);
+                const stream = fs.createReadStream(filePath, {
+                  fd: handle,
+                  autoClose: true,
+                });
+                stream.on('error', (err: Error) => {
+                  res.statusCode = 500;
+                  res.end(String(err));
+                });
+                stream.pipe(res);
+              } catch (err) {
+                res.statusCode = 500;
+                res.end(String(err));
+              }
             })
             .listen(9999, '::', async () => {
               console.log('Fake github serving...');
