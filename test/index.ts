@@ -70,7 +70,7 @@ class FakeUI {
   }
   progress<T>(
     _title: string,
-    _cancel: any,
+    _cancel: AbortController | null,
     work: (progress: (fraction: number) => void) => Promise<T>,
   ) {
     this.event('progress');
@@ -87,7 +87,7 @@ class FakeUI {
 
 function test(
   name: string,
-  body: (assert: tape.Test, ui: FakeUI) => Promise<any>,
+  body: (assert: tape.Test, ui: FakeUI) => Promise<void>,
 ) {
   tape(name, async (assert) =>
     tmp.withDir(
