@@ -1,6 +1,5 @@
 import * as fs from 'fs';
 import * as http from 'http';
-import * as nodeStatic from 'node-static';
 import * as os from 'os';
 import * as path from 'path';
 import tape from 'tape';
@@ -96,12 +95,43 @@ function test(
     tmp.withDir(
       async (dir) => {
         const ui = new FakeUI(dir.path);
-        const files = new nodeStatic.Server('test/assets/');
         return new Promise((resolve, _reject) => {
           const server = http
-            .createServer((req, res) => {
+            .createServer(async (req, res) => {
               console.log('Fake github:', req.method, req.url);
-              req.on('end', () => files.serve(req, res)).resume();
+              if (!req.url) {
+                res.statusCode = 400;
+                res.end();
+                return;
+              }
+
+              req.resume();
+
+              const {pathname} = new URL(req.url, 'http://localhost');
+              const filePath = path.resolve(assetsRoot, '.' + pathname);
+              if (!filePath.startsWith(assetsRoot + path.sep)) {
+                res.statusCode = 400;
+                res.end();
+                return;
+              }
+
+              try {
+                const handle = await fs.promises.open(filePath, 'r');
+                const stat = await handle.stat();
+                res.setHeader('Content-Length', stat.size);
+                const stream = fs.createReadStream(filePath, {
+                  fd: handle,
+                  autoClose: true,
+                });
+                stream.on('error', (err: Error) => {
+                  res.statusCode = 500;
+                  res.end(String(err));
+                });
+                stream.pipe(res);
+              } catch (err) {
+                res.statusCode = 500;
+                res.end(String(err));
+              }
             })
             .listen(9999, '::', async () => {
               console.log('Fake github serving...');
