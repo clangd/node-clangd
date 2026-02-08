@@ -437,9 +437,9 @@ namespace Version {
     const output = await run(lddCommand, ['--version']);
     // The first line is e.g. "ldd (Debian GLIBC 2.29-9) 2.29".
     const line = output.split('\n', 1)[0];
-    // Require some confirmation this is glibc, and a plausible
+    // Require some confirmation this is [e]glibc, and a plausible
     // version number.
-    const match = line.match(/^ldd .*(GNU |g)libc.* (\d+(?:\.\d+)+)[^ ]*$/i);
+    const match = line.match(/^ldd .*(?:GNU |g)libc.* (\d+(?:\.\d+)+)[^ ]*$/i);
     if (!match || !semver.validRange(match[1], loose)) {
       console.error(`Can't determine glibc version from ldd --version output: ${line}`);
       return null;
