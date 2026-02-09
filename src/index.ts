@@ -439,9 +439,11 @@ namespace Version {
     const line = output.split('\n', 1)[0];
     // Require some confirmation this is [e]glibc, and a plausible
     // version number.
-    const match = line.match(/^ldd .*glibc.* (\d+(?:\.\d+)+)[^ ]*$/i);
+    const match = line.match(/^ldd .*(?:GNU |g)libc.* (\d+(?:\.\d+)+)[^ ]*$/i);
     if (!match || !semver.validRange(match[1], loose)) {
-      console.error(`Can't glibc version from ldd --version output: ${line}`);
+      console.error(
+        `Can't determine glibc version from ldd --version output: ${line}`,
+      );
       return null;
     }
     const version = new semver.Range(match[1], loose);
