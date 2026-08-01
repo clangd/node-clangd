@@ -95,7 +95,7 @@ function test(
     tmp.withDir(
       async (dir) => {
         const ui = new FakeUI(dir.path);
-        return new Promise((resolve, _reject) => {
+        return new Promise<void>((resolve, _reject) => {
           const server = http
             .createServer(async (req, res) => {
               console.log('Fake github:', req.method, req.url);
